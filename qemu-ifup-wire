@@ -1,0 +1,101 @@
+#!/usr/bin/python3
+'''
+The script will try to pair devices using tc mirror feature.
+The variable TOPOLOGY should be set to filename in YAML.
+The format is:
+
+links:
+  - wire: [<ep>,<ep>]
+  - fork: [<ep>,<ep>,<ep>]
+  ...
+  
+Endpoint <ep> is either just device name or tuple <vmname>:<devname>.
+The <vmname> part is not needed by this script and simply removed at input.
+It can be used as informational.
+
+Use the script as hook in libvirt XML:
+
+    <interface type='ethernet'>
+      <script path='/etc/libvirt/hooks/qemu-ifup-wire'/>
+      <target dev='w1a'/>
+      <model type='virtio'/>
+    </interface>
+'''
+import re, sys, os
+import yaml
+
+# TOPOLOGY: change to filename which contains topology data
+TOPOLOGY = '/tmp/topology.yaml'
+
+IS_EXIST = lambda x: os.access('/sys/class/net/' + x, os.R_OK)
+discClear = "tc filter del dev %s root"
+discAdd = "tc qdisc add dev %s ingress" 
+redrSet = "tc filter add dev %s ingress matchall action mirred egress redirect dev %s"
+mirrRedrSet = "tc filter add dev %s ingress matchall action mirred egress mirror dev %s action mirred egress redirect dev %s"
+
+def make_wire(dev1, dev2):
+
+    os.system(discClear % (dev1))
+    os.system(discClear % (dev2))
+    os.system(discAdd % (dev1))
+    os.system(discAdd % (dev2))
+    os.system(redrSet % (dev1, dev2))
+    os.system(redrSet % (dev2, dev1))
+
+def make_fork(dev1, dev2, dev3):
+
+    os.system(discClear % (dev1))
+    os.system(discClear % (dev2))
+    os.system(discClear % (dev3))
+    os.system(discAdd % (dev1))
+    os.system(discAdd % (dev2))
+    os.system(discAdd % (dev3))
+    os.system(mirrRedrSet % (dev1, dev2, dev3))
+    os.system(redrSet % (dev2, dev1))
+    os.system(redrSet % (dev3, dev1))
+    
+def main():
+    
+    try:
+        with open(TOPOLOGY, 'r') as f:
+            data = yaml.load(f, Loader=yaml.Loader)
+    except yaml.parser.ParserError as ex:
+        sys.stderr.write('Error parsing topology file {}\n'.format(TOPOLOGY))
+        raise
+        
+    # Loop for links
+    for link in data['links']:
+        
+        # Process wire (point-to-point connection between two devices)
+        wire = link.get('wire')
+        if wire and len(wire) == 2:
+            devs = [
+                re.sub(r'^.*:', '', wire[0]),
+                re.sub(r'^.*:', '', wire[1]),
+            ]
+            if sys.argv[1] in devs and \
+                IS_EXIST(devs[0]) and IS_EXIST(devs[1]):
+                make_wire(*devs)
+                
+        # Process fork (point-to-multipoint connection between three devices
+        # i.e. between 1st and 2nd and between 1st and 3rd)
+        fork = link.get('fork')
+        if fork and len(fork) == 3:
+            devs = [
+                re.sub(r'^.*:', '', fork[0]),
+                re.sub(r'^.*:', '', fork[1]),
+                re.sub(r'^.*:', '', fork[2]),
+            ]
+            if sys.argv[1] in devs:
+                if IS_EXIST(devs[0]):
+                    if IS_EXIST(devs[1]):
+                        if IS_EXIST(devs[2]):
+                            make_fork(*devs)
+                        else:
+                            make_wire(devs[0], devs[1])
+                    elif IS_EXIST(devs[2]):
+                        make_wire(devs[0], devs[2])
+
+if __name__ == '__main__':
+    main()
+

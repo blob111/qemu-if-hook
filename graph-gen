@@ -1,0 +1,64 @@
+#!/usr/bin/python3
+'''
+The script generates input file for graphviz.
+The script read data in YAML as input stream.
+The format is:
+
+links:
+  - wire: [<ep>,<ep>]
+  - fork: [<ep>,<ep>,<ep>]
+  ...
+  
+Endpoint <ep> is either just device name or tuple <vmname>:<devname>.
+The <vmname> part considered as node name. Links without <vmname> at least in one <ep> will be ignored.
+'''
+
+import sys, yaml
+
+GRAPH_INDENT = 4 * ' '
+GRAPH_PRE = '''graph lab {
+    nodesep=1.0;
+    ranksep=1.0;
+    node [shape=box, width=1.0];
+    edge [labelfontsize=10.0, fontcolor=dimgrey];
+'''
+GRAPH_POST = '}'
+
+def ep_split(ep):
+    ep_a = ep.rpartition(':')
+    return [ep_a[0], ep_a[2]]
+
+def main():
+    
+    try:
+        data = yaml.load(sys.stdin, Loader=yaml.Loader)
+    except yaml.parser.ParserError as ex:
+        sys.stderr.write('Error parsing topology data\n')
+        raise
+        
+    # Loop for links
+    edges = []
+    for link in data['links']:
+        
+        # Process wire (point-to-point connection between two devices)
+        wire = link.get('wire')
+        if wire and len(wire) == 2:
+            edges.append(list(map(ep_split, wire)))
+                
+        # Process fork (point-to-multipoint connection between three devices
+        # i.e. between 1st and 2nd and between 1st and 3rd)
+        fork = link.get('fork')
+        if fork and len(fork) == 3:
+            edges.append(list(map(ep_split, [fork[0], fork[1]])))
+            edges.append(list(map(ep_split, [fork[0], fork[2]])))
+            
+    graph_edges = ''
+    for (a, z) in edges:
+        if a[0] and z[0]:
+            graph_edges += '{}"{}" -- "{}" [headlabel="{}", taillabel="{}"]\n'.format(
+                GRAPH_INDENT, a[0], z[0], a[1], z[1])
+                
+    print(GRAPH_PRE + graph_edges + GRAPH_POST)
+
+if __name__ == '__main__':
+    main()
