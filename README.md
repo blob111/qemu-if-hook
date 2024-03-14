@@ -18,7 +18,7 @@ Endpoint `<ep>` is either just device name or tuple `<vmname>:<devname>`.
 The `<vmname>` part is not needed by this script and simply removed at input.
 Link of type wire is point-to-point link which connects two endpoints.
 Link of type fork has root endpoint (first one) and two leaves. Packets egressing the root endpoint appear at ingress of both leaves.
-Link of type bridge connects the endpoint to the bridge `<brname>`.
+Link of type bridge connects the endpoint to the bridge `<brname>` on the host.
 
 Use the script as hook in libvirt XML:
 
