@@ -10,13 +10,15 @@ Format of YAML data is:
 links:
   - wire: [<ep>,<ep>]
   - fork: [<ep>,<ep>,<ep>]
+  - bridge: [<ep>, <brname>]
   ...
 ```
 
 Endpoint `<ep>` is either just device name or tuple `<vmname>:<devname>`.
 The `<vmname>` part is not needed by this script and simply removed at input.
 Link of type wire is point-to-point link which connects two endpoints.
-Link of type fork has root endpoint (first one) and two leaves. Packets egressing the root endpoint appear on ingress of the two leaves.
+Link of type fork has root endpoint (first one) and two leaves. Packets egressing the root endpoint appear at ingress of both leaves.
+Link of type bridge connects the endpoint to the bridge `<brname>`.
 
 Use the script as hook in libvirt XML:
 
