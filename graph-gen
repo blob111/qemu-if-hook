@@ -7,22 +7,22 @@ The format is:
 links:
   - wire: [<ep>,<ep>]
   - fork: [<ep>,<ep>,<ep>]
-  - bridge: [<ep>, <brname>]
+  - bridge: [<brname>, <ep>]
   ...
   
 Endpoint <ep> is either just device name or tuple <vmname>:<devname>.
 The <vmname> part considered as node name. Links without <vmname> at least in one <ep> will be ignored.
-Bridge <br> is the name of the bridge on the host to which endpoint <ep> connected.
+Bridge <brname> is the name of the bridge on the host to which endpoint <ep> connected.
 '''
 
 import sys, yaml
 
 GRAPH_INDENT = 4 * ' '
-GRAPH_PRE = '''graph lab {
+GRAPH_PRE = '''digraph lab {
     nodesep=1.0;
     ranksep=1.0;
     node [shape=box, width=1.0];
-    edge [labelfontsize=10.0, color=dimgrey];
+    edge [dir=none, labelfontsize=10.0, color=dimgrey];
 '''
 SUBGRAPH_HOST_PRE = '''    subgraph host {
         cluster=true;
@@ -67,30 +67,31 @@ def main():
         # Process bridge
         bridge = link.get('bridge')
         if bridge and len(bridge) == 2:
-            br_edges.append([ep_split(bridge[0]), [bridge[1], '']])
+            br_edges.append([[bridge[0], ''], ep_split(bridge[1])])
             
     graph_edges = ''
+    bridges = set()
     nodes = set()
+    
+    for a, z in br_edges:
+        if a[0] and z[0]:
+            graph_edges += '{}"{}" -> "{}" [taillabel="{}", headlabel="{}"]\n'.format(
+                GRAPH_INDENT, a[0], z[0], a[1], z[1])
+            bridges.add(a[0])
+            nodes.add(z[0])
+            
     for a, z in edges:
         if a[0] and z[0]:
-            graph_edges += '{}"{}" -- "{}" [taillabel="{}", headlabel="{}"]\n'.format(
+            graph_edges += '{}"{}" -> "{}" [taillabel="{}", headlabel="{}"]\n'.format(
                 GRAPH_INDENT, a[0], z[0], a[1], z[1])
             nodes.add(a[0])
             nodes.add(z[0])
             
-    bridges = set()
-    for a, z in br_edges:
-        if a[0] and z[0]:
-            graph_edges += '{}"{}" -- "{}" [taillabel="{}", headlabel="{}"]\n'.format(
-                GRAPH_INDENT, a[0], z[0], a[1], z[1])
-            nodes.add(a[0])
-            bridges.add(z[0])
-            
     s = GRAPH_PRE
-    if nodes:
-        s += SUBGRAPH_NODES_PRE + 2 * GRAPH_INDENT + '; '.join(list(map(lambda x: '"'+x+'"', nodes))) + '\n' + GRAPH_INDENT + '}\n'
     if bridges:
         s += SUBGRAPH_HOST_PRE + 2 * GRAPH_INDENT + '; '.join(list(map(lambda x: '"'+x+'"', bridges))) + '\n' + GRAPH_INDENT + '}\n'
+    if nodes:
+        s += SUBGRAPH_NODES_PRE + 2 * GRAPH_INDENT + '; '.join(list(map(lambda x: '"'+x+'"', nodes))) + '\n' + GRAPH_INDENT + '}\n'
     s += graph_edges + '}'
     print(s)
 

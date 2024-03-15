@@ -7,13 +7,13 @@ The format is:
 links:
   - wire: [<ep>,<ep>]
   - fork: [<ep>,<ep>,<ep>]
-  - bridge: [<ep>, <brname>]
+  - bridge: [<brname>, <ep>]
   ...
   
 Endpoint <ep> is either just device name or tuple <vmname>:<devname>.
 The <vmname> part is not needed by this script and simply removed at input.
 It can be used as informational.
-Bridge <br> is the name of the bridge on the host to which endpoint <ep> connected.
+Bridge <brname> is the name of the bridge on the host to which endpoint <ep> connected.
 
 Use the script as hook in libvirt XML:
 
@@ -106,8 +106,8 @@ def main():
         # Connect device to bridge
         bridge = link.get('bridge')
         if bridge and len(bridge) == 2:
-            dev = re.sub(r'^.*:', '', bridge[0])
-            br = bridge[1]
+            br = bridge[0]
+            dev = re.sub(r'^.*:', '', bridge[1])
             if DEV_EXIST(dev) and BR_EXIST(br):
                 connect_to_bridge(dev, br)
 

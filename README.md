@@ -10,7 +10,7 @@ Format of YAML data is:
 links:
   - wire: [<ep>,<ep>]
   - fork: [<ep>,<ep>,<ep>]
-  - bridge: [<ep>, <brname>]
+  - bridge: [<brname>, <ep>]
   ...
 ```
 
